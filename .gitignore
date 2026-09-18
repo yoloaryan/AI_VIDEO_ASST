@@ -1,0 +1,30 @@
+# Environment variables & secrets
+.env
+*.env
+
+# Python Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Downloaded audio & chunks
+downloads/
+*.mp3
+*.mp4
+*.wav
+*.m4a
+
+# IDE & Editor settings
+.vscode/
+.idea/
+.DS_Store
+
+# Streamlit
+.streamlit/
