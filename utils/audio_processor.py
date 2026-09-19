@@ -12,6 +12,7 @@ def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
         "quiet": True,
         "no_warnings": True,
         "extract_flat": True,
+        "noplaylist": True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
@@ -22,7 +23,7 @@ def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
         duration = info.get("duration")
         if duration and duration > (max_minutes * 60):
             raise ValueError(
-                "This video is longer than 10 minutes. Please choose a YouTube video within the 10-minute limit."
+                f"This video is longer than {max_minutes} minutes ({int(duration // 60)}m {int(duration % 60)}s). Please choose a video within the {max_minutes}-minute limit."
             )
         return float(duration) if duration else 0.0
 
@@ -31,10 +32,10 @@ def download_youtube_audio(url: str) -> str:
     # First validate duration without downloading
     check_youtube_duration(url, max_minutes=10)
 
-    output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
+    output_tmpl = os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s")
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": output_path,
+        "outtmpl": output_tmpl,
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "wav",
@@ -42,11 +43,18 @@ def download_youtube_audio(url: str) -> str:
         }],
         "quiet": True,
         "no_warnings": True,
+        "noplaylist": True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info).replace(".webm", ".wav").replace(
-            ".m4a", ".wav")
+        video_id = info.get("id") or "audio"
+        filename = os.path.join(DOWNLOAD_DIR, f"{video_id}.wav")
+        if not os.path.exists(filename):
+            # Fallback check for any converted file with that id
+            for f in os.listdir(DOWNLOAD_DIR):
+                if f.startswith(video_id) and f.endswith(".wav"):
+                    filename = os.path.join(DOWNLOAD_DIR, f)
+                    break
     return filename
 
 
