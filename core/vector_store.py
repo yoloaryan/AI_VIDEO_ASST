@@ -1,3 +1,5 @@
+import os
+
 try:
     from langchain_chroma import Chroma
 except ImportError:
