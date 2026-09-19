@@ -27,6 +27,8 @@ def extract_youtube_video_id(url: str) -> str:
     return match.group(1) if match else ""
 
 
+YOUTUBE_PROXY = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY")
+
 def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
     """Attempt to fetch YouTube transcript directly via youtube-transcript-api across all API versions."""
     video_id = extract_youtube_video_id(url)
@@ -36,10 +38,11 @@ def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
         from youtube_transcript_api import YouTubeTranscriptApi
         
         transcript_snippets = None
+        proxies = {"http": YOUTUBE_PROXY, "https": YOUTUBE_PROXY} if YOUTUBE_PROXY else None
         
         # Method 1: New youtube-transcript-api instance method (v1.2+)
         try:
-            api = YouTubeTranscriptApi()
+            api = YouTubeTranscriptApi(proxies=proxies) if proxies else YouTubeTranscriptApi()
             if hasattr(api, 'fetch'):
                 transcript_snippets = api.fetch(video_id)
             elif hasattr(api, 'list'):
@@ -54,7 +57,10 @@ def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
             try:
                 if hasattr(YouTubeTranscriptApi, 'get_transcript'):
                     langs = ['hi', 'en'] if language.lower() in ['hinglish', 'hindi'] else ['en', 'en-US', 'en-GB', 'hi']
-                    transcript_snippets = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
+                    if proxies:
+                        transcript_snippets = YouTubeTranscriptApi.get_transcript(video_id, languages=langs, proxies=proxies)
+                    else:
+                        transcript_snippets = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
             except Exception as e2:
                 print(f"Direct API get_transcript fallback note: {e2}")
 
@@ -108,6 +114,9 @@ def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
     }
+    if YOUTUBE_PROXY:
+        ydl_opts["proxy"] = YOUTUBE_PROXY
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(url, download=False)
@@ -149,6 +158,9 @@ def download_youtube_audio(url: str) -> str:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         }
     }
+    if YOUTUBE_PROXY:
+        ydl_opts["proxy"] = YOUTUBE_PROXY
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         video_id = info.get("id") or "audio"
