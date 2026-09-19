@@ -157,4 +157,5 @@ app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=5500, reload=True)
+    port = int(os.environ.get("PORT", 5500))
+    uvicorn.run("app:app", host="0.0.0.0", port=port)

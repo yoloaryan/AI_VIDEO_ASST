@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ai-video-assistant
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: MISTRAL_MODEL
+        value: open-mistral-7b
+      - key: WHISPER_MODEL
+        value: tiny
