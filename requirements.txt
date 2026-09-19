@@ -6,6 +6,8 @@ python-multipart>=0.0.9
 # Audio / Video Processing
 yt-dlp>=2024.4.9
 pydub>=0.25.1
+pyaudioop>=0.1.1
+audioop-lts>=0.2.1
 ffmpeg-python>=0.2.0
 
 # Speech-to-Text (Whisper) & PyTorch
