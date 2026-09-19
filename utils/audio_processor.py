@@ -27,7 +27,7 @@ def extract_youtube_video_id(url: str) -> str:
     return match.group(1) if match else ""
 
 
-YOUTUBE_PROXY = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY")
+YOUTUBE_PROXY = os.getenv("YOUTUBE_PROXY")
 
 def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
     """Attempt to fetch YouTube transcript directly via youtube-transcript-api across all API versions."""
