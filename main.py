@@ -1,5 +1,4 @@
-from dotenv import load_dotenv
-from utils.audio_processor import process_input
+from utils.audio_processor import process_input, fetch_youtube_transcript
 from core.transcriber import transcribe_all
 from core.summarizer import summarize, generate_title
 from core.extractor import extract_action_items, extract_key_decisions, extract_questions
@@ -11,15 +10,28 @@ load_dotenv()
 def run_pipeline(source: str, language: str = "english") -> dict:
     print("starting AI Video Assistant")
 
-    chunks = process_input(source)
+    transcript = ""
+    segments = []
 
-    transcription_result = transcribe_all(chunks, language)
-    if isinstance(transcription_result, dict):
-        transcript = transcription_result.get("text", "")
-        segments = transcription_result.get("segments", [])
-    else:
-        transcript = str(transcription_result)
-        segments = []
+    # If it's a YouTube URL, first attempt high-speed direct transcript extraction
+    if source.startswith("http://") or source.startswith("https://"):
+        print("Checking for direct YouTube transcript...")
+        direct_result = fetch_youtube_transcript(source, language)
+        if direct_result and direct_result.get("text"):
+            print("Successfully extracted YouTube transcript directly!")
+            transcript = direct_result.get("text", "")
+            segments = direct_result.get("segments", [])
+
+    # If direct transcript wasn't available, fall back to audio extraction + Whisper/Sarvam
+    if not transcript:
+        chunks = process_input(source)
+        transcription_result = transcribe_all(chunks, language)
+        if isinstance(transcription_result, dict):
+            transcript = transcription_result.get("text", "")
+            segments = transcription_result.get("segments", [])
+        else:
+            transcript = str(transcription_result)
+            segments = []
 
     print(f"raw transcription (first 300 characters ) {transcript[:300]}")
 

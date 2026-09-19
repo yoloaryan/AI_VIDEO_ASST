@@ -6,6 +6,56 @@ DOWNLOAD_DIR = 'downloads'
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
+import re
+
+def extract_youtube_video_id(url: str) -> str:
+    patterns = [
+        r'(?:v=|\/|embed\/|youtu\.be\/|\/v\/)([0-9A-Za-z_-]{11})',
+    ]
+    for p in patterns:
+        m = re.search(p, url)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
+    """Attempt to fetch YouTube transcript directly via youtube-transcript-api to bypass audio download restrictions."""
+    video_id = extract_youtube_video_id(url)
+    if not video_id:
+        return None
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        
+        langs = ['en', 'en-US', 'en-GB', 'hi']
+        if language.lower() in ['hinglish', 'hindi']:
+            langs = ['hi', 'en']
+            
+        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
+        if transcript_data:
+            full_text = " ".join([item["text"] for item in transcript_data if item.get("text")])
+            segments = []
+            for item in transcript_data:
+                start = round(float(item.get("start", 0.0)), 2)
+                duration = round(float(item.get("duration", 0.0)), 2)
+                text = item.get("text", "").strip()
+                if text:
+                    segments.append({
+                        "start": start,
+                        "end": round(start + duration, 2),
+                        "speaker": "Speaker",
+                        "text": text
+                    })
+            if full_text.strip():
+                return {
+                    "text": full_text.strip(),
+                    "segments": segments
+                }
+    except Exception as e:
+        print(f"Direct transcript API unavailable for {video_id}: {e}")
+    return None
+
+
 def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
     """Verify that the YouTube video does not exceed the maximum allowed duration."""
     ydl_opts = {
@@ -15,7 +65,7 @@ def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
         "noplaylist": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "tvhtml5", "mweb"]
+                "player_client": ["android", "ios", "mweb", "tvhtml5"]
             }
         },
         "http_headers": {
@@ -26,7 +76,9 @@ def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
         try:
             info = ydl.extract_info(url, download=False)
         except Exception as e:
-            raise ValueError(f"Unable to access YouTube video. Please check the URL: {e}")
+            # If duration check fails due to bot block, allow pipeline to proceed to transcript extraction
+            print(f"Duration check warning: {e}")
+            return 0.0
         
         duration = info.get("duration")
         if duration and duration > (max_minutes * 60):

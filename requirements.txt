@@ -5,6 +5,7 @@ python-multipart>=0.0.9
 
 # Audio / Video Processing
 yt-dlp>=2024.4.9
+youtube-transcript-api>=0.6.2
 pydub>=0.25.1
 ffmpeg-python>=0.2.0
 
