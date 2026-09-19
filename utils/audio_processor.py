@@ -7,52 +7,88 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
 import re
+from urllib.parse import urlparse, parse_qs
 
 def extract_youtube_video_id(url: str) -> str:
-    patterns = [
-        r'(?:v=|\/|embed\/|youtu\.be\/|\/v\/)([0-9A-Za-z_-]{11})',
-    ]
-    for p in patterns:
-        m = re.search(p, url)
-        if m:
-            return m.group(1)
-    return ""
+    url = url.strip()
+    try:
+        parsed = urlparse(url)
+        if parsed.hostname in ('youtu.be', 'www.youtu.be'):
+            return parsed.path.lstrip('/')
+        if parsed.hostname in ('youtube.com', 'www.youtube.com', 'm.youtube.com'):
+            if parsed.path == '/watch':
+                return parse_qs(parsed.query).get('v', [''])[0]
+            if parsed.path.startswith(('/embed/', '/v/', '/shorts/')):
+                return parsed.path.split('/')[2]
+    except Exception:
+        pass
+    
+    match = re.search(r'(?:v=|\/|embed\/|youtu\.be\/|\/v\/|\/shorts\/)([0-9A-Za-z_-]{11})', url)
+    return match.group(1) if match else ""
 
 
 def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
-    """Attempt to fetch YouTube transcript directly via youtube-transcript-api to bypass audio download restrictions."""
+    """Attempt to fetch YouTube transcript directly via youtube-transcript-api across all API versions."""
     video_id = extract_youtube_video_id(url)
     if not video_id:
         return None
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         
-        langs = ['en', 'en-US', 'en-GB', 'hi']
-        if language.lower() in ['hinglish', 'hindi']:
-            langs = ['hi', 'en']
+        transcript_snippets = None
+        
+        # Method 1: New youtube-transcript-api instance method (v1.2+)
+        try:
+            api = YouTubeTranscriptApi()
+            if hasattr(api, 'fetch'):
+                transcript_snippets = api.fetch(video_id)
+            elif hasattr(api, 'list'):
+                t_list = api.list(video_id)
+                langs = ['hi', 'en'] if language.lower() in ['hinglish', 'hindi'] else ['en', 'en-US', 'en-GB', 'hi']
+                transcript_snippets = t_list.find_transcript(langs).fetch()
+        except Exception as e1:
+            print(f"Direct API instance fetch note: {e1}")
+
+        # Method 2: Legacy class method fallback
+        if not transcript_snippets:
+            try:
+                if hasattr(YouTubeTranscriptApi, 'get_transcript'):
+                    langs = ['hi', 'en'] if language.lower() in ['hinglish', 'hindi'] else ['en', 'en-US', 'en-GB', 'hi']
+                    transcript_snippets = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
+            except Exception as e2:
+                print(f"Direct API get_transcript fallback note: {e2}")
+
+        if not transcript_snippets:
+            return None
+
+        full_text = []
+        segments = []
+        for snippet in transcript_snippets:
+            if isinstance(snippet, dict):
+                text = snippet.get('text', '').strip()
+                start = round(float(snippet.get('start', 0.0)), 2)
+                duration = round(float(snippet.get('duration', 0.0)), 2)
+            else:
+                text = getattr(snippet, 'text', '').strip()
+                start = round(float(getattr(snippet, 'start', 0.0)), 2)
+                duration = round(float(getattr(snippet, 'duration', 0.0)), 2)
             
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
-        if transcript_data:
-            full_text = " ".join([item["text"] for item in transcript_data if item.get("text")])
-            segments = []
-            for item in transcript_data:
-                start = round(float(item.get("start", 0.0)), 2)
-                duration = round(float(item.get("duration", 0.0)), 2)
-                text = item.get("text", "").strip()
-                if text:
-                    segments.append({
-                        "start": start,
-                        "end": round(start + duration, 2),
-                        "speaker": "Speaker",
-                        "text": text
-                    })
-            if full_text.strip():
-                return {
-                    "text": full_text.strip(),
-                    "segments": segments
-                }
+            if text:
+                full_text.append(text)
+                segments.append({
+                    'start': start,
+                    'end': round(start + duration, 2),
+                    'speaker': 'Speaker',
+                    'text': text
+                })
+
+        if full_text:
+            return {
+                'text': ' '.join(full_text),
+                'segments': segments
+            }
     except Exception as e:
-        print(f"Direct transcript API unavailable for {video_id}: {e}")
+        print(f"Direct transcript extraction error for {video_id}: {e}")
     return None
 
 
