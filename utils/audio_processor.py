@@ -27,7 +27,22 @@ def extract_youtube_video_id(url: str) -> str:
     return match.group(1) if match else ""
 
 
-YOUTUBE_PROXY = os.getenv("YOUTUBE_PROXY")
+from typing import Optional
+
+def get_youtube_proxy() -> Optional[str]:
+    """
+    Retrieve explicitly configured YOUTUBE_PROXY.
+    Never falls back to ambient HTTP_PROXY, HTTPS_PROXY, or system proxies.
+    Logs proxy status safely without exposing credentials or full URL.
+    """
+    proxy = os.getenv("YOUTUBE_PROXY", "").strip()
+    if proxy:
+        print("[YouTube Config] Explicit YOUTUBE_PROXY is configured (proxy enabled).")
+        return proxy
+    else:
+        print("[YouTube Config] No YOUTUBE_PROXY configured — using direct connection.")
+        return None
+
 
 def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
     """Attempt to fetch YouTube transcript directly via youtube-transcript-api across all API versions."""
@@ -37,8 +52,9 @@ def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         
+        proxy = get_youtube_proxy()
+        proxies = {"http": proxy, "https": proxy} if proxy else None
         transcript_snippets = None
-        proxies = {"http": YOUTUBE_PROXY, "https": YOUTUBE_PROXY} if YOUTUBE_PROXY else None
         
         # Method 1: New youtube-transcript-api instance method (v1.2+)
         try:
@@ -94,28 +110,24 @@ def fetch_youtube_transcript(url: str, language: str = "english") -> dict:
                 'segments': segments
             }
     except Exception as e:
-        print(f"Direct transcript extraction error for {video_id}: {e}")
+        print(f"Direct transcript extraction note for {video_id}: {e}")
     return None
 
 
 def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
     """Verify that the YouTube video does not exceed the maximum allowed duration."""
+    proxy = get_youtube_proxy()
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
         "extract_flat": True,
         "noplaylist": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "ios", "mweb", "tvhtml5"]
-            }
-        },
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        }
     }
-    if YOUTUBE_PROXY:
-        ydl_opts["proxy"] = YOUTUBE_PROXY
+    # Explicitly manage proxy: use YOUTUBE_PROXY if present, otherwise disable ambient proxies
+    if proxy:
+        ydl_opts["proxy"] = proxy
+    else:
+        ydl_opts["proxy"] = ""
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
@@ -137,6 +149,7 @@ def download_youtube_audio(url: str) -> str:
     # First validate duration without downloading
     check_youtube_duration(url, max_minutes=10)
 
+    proxy = get_youtube_proxy()
     output_tmpl = os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s")
     ydl_opts = {
         "format": "bestaudio/best",
@@ -149,17 +162,12 @@ def download_youtube_audio(url: str) -> str:
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "ios", "tvhtml5", "mweb"]
-            }
-        },
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        }
     }
-    if YOUTUBE_PROXY:
-        ydl_opts["proxy"] = YOUTUBE_PROXY
+    # Explicitly manage proxy: use YOUTUBE_PROXY if present, otherwise disable ambient proxies
+    if proxy:
+        ydl_opts["proxy"] = proxy
+    else:
+        ydl_opts["proxy"] = ""
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
