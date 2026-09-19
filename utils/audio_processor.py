@@ -6,21 +6,42 @@ DOWNLOAD_DIR = 'downloads'
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
+def check_youtube_duration(url: str, max_minutes: int = 10) -> float:
+    """Verify that the YouTube video does not exceed the maximum allowed duration."""
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(url, download=False)
+        except Exception as e:
+            raise ValueError(f"Unable to access YouTube video. Please check the URL: {e}")
+        
+        duration = info.get("duration")
+        if duration and duration > (max_minutes * 60):
+            raise ValueError(
+                "This video is longer than 10 minutes. Please choose a YouTube video within the 10-minute limit."
+            )
+        return float(duration) if duration else 0.0
+
+
 def download_youtube_audio(url: str) -> str:
-    # "%(title)s.%(ext)s" this will work as when we write the Team meeting . wav format( in which it save. Team metting in (title) and the .wav format in (ext)
+    # First validate duration without downloading
+    check_youtube_duration(url, max_minutes=10)
+
     output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
     ydl_opts = {
-        "format":
-        "bestaudio/best",
-        "outtmpl":
-        output_path,
+        "format": "bestaudio/best",
+        "outtmpl": output_path,
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "wav",
             "preferredquality": "192",
         }],
-        "quiet":
-        True,  #it will remove the 
+        "quiet": True,
+        "no_warnings": True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)

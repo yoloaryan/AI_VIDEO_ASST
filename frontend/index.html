@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Video Assistant — Transform videos and meetings into searchable knowledge with Whisper transcription and RAG.">
+    <title>AI Video Assistant — Video Intelligence & RAG</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Markdown & Sanitizer Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+    <link rel="apple-touch-icon" href="./assets/favicon.svg">
+
+    <!-- Pre-render Theme Application to Prevent Flash of Wrong Theme (FOWT) -->
+    <script>
+        (function() {
+            try {
+                const theme = localStorage.getItem("ai_video_theme") || "dark";
+                document.documentElement.setAttribute("data-theme", theme);
+            } catch (e) {}
+        })();
+    </script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- =====================================================
+     LOADER
+===================================================== -->
+<div class="loader" id="loader">
+    <div class="loader-content">
+        <div class="loader-brand">
+            AI<span>VIDEO</span>
+        </div>
+        <div class="loader-line">
+            <div class="loader-progress"></div>
+        </div>
+        <p>INITIALIZING INTELLIGENCE</p>
+    </div>
+</div>
+
+<!-- =====================================================
+     TOAST CONTAINER
+===================================================== -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- =====================================================
+     NAVIGATION
+===================================================== -->
+<header class="navbar" id="navbar">
+    <a href="#" class="brand" aria-label="AI Video Assistant Home">
+        <span class="brand-mark">AI</span>
+        <span class="brand-text">
+            VIDEO
+            <small>ASSISTANT</small>
+        </span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Main Navigation">
+        <a href="#workspace">Workspace</a>
+        <a href="#analysis">Analysis</a>
+        <a href="#transcript">Transcript</a>
+        <a href="#ask">Ask AI</a>
+    </nav>
+
+    <div class="nav-actions">
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle Dark / Light Theme" title="Toggle Theme (Dark / Light)">
+            <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
+
+        <button class="nav-button" id="newVideoBtn">
+            + New video
+        </button>
+
+        <button class="profile-button" aria-label="User Profile">
+            A
+        </button>
+    </div>
+
+    <button class="mobile-menu-button" id="mobileMenuButton" aria-label="Open navigation menu">
+        <span></span>
+        <span></span>
+    </button>
+</header>
+
+<!-- =====================================================
+     MOBILE MENU
+===================================================== -->
+<div class="mobile-menu" id="mobileMenu">
+    <a href="#workspace">Workspace</a>
+    <a href="#analysis">Analysis</a>
+    <a href="#transcript">Transcript</a>
+    <a href="#ask">Ask AI</a>
+</div>
+
+<!-- =====================================================
+     MAIN CONTENT
+===================================================== -->
+<main>
+
+    <!-- =====================================================
+         HERO & CENTERED UPLOAD AREA
+    ===================================================== -->
+    <section class="hero section" id="workspace">
+        <div class="hero-meta">
+            <span>01 / AI VIDEO INTELLIGENCE</span>
+            <span>TRANSCRIPTION · RAG · SEARCH</span>
+        </div>
+
+        <div class="hero-header">
+            <p class="eyebrow">INTELLIGENCE FOR EVERY VIDEO</p>
+            <h1>Turn video<br>into <span class="hero-highlight">knowledge.</span></h1>
+            <p class="hero-description">
+                Upload a video, meeting recording or YouTube link. AI Video Assistant transcribes with Whisper, generates executive summaries, extracts action items, and powers conversational search over your entire conversation.
+            </p>
+        </div>
+
+        <!-- LARGE CENTERED UPLOAD INTERFACE -->
+        <div class="upload-container-wrapper">
+            <div class="upload-card">
+                
+                <!-- File Upload Section -->
+                <div class="upload-dropzone" id="dropzone">
+                    <div class="dropzone-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <h3>Upload your video</h3>
+                    <p class="dropzone-subtitle">Drag and drop your file here, or click to browse</p>
+                    
+                    <button class="primary-button upload-browse-btn" id="uploadButton" type="button">
+                        Select Video File
+                        <span>↗</span>
+                    </button>
+                    
+                    <input type="file" id="videoInput" accept="video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/m4a,video/webm,.mp4,.mov,.mp3,.wav" hidden>
+                    
+                    <div class="upload-limits-info">
+                        <span class="limit-badge">Maximum file size: 5 MB</span>
+                        <span class="formats-text">MP4 · MOV · MP3 · WAV</span>
+                    </div>
+
+                    <!-- Selected File State Card (Hidden by default) -->
+                    <div class="file-selected-card" id="fileSelectedCard" style="display: none;">
+                        <div class="file-details">
+                            <div class="file-icon">📄</div>
+                            <div class="file-info-text">
+                                <strong id="selectedFileName">filename.mp4</strong>
+                                <span id="selectedFileSize">0.0 MB</span>
+                            </div>
+                            <span class="file-status-badge">Ready to process</span>
+                        </div>
+                        <button class="primary-button process-file-btn" id="processFileBtn" type="button">
+                            Process Video →
+                        </button>
+                    </div>
+                </div>
+
+                <!-- OR Divider -->
+                <div class="upload-divider">
+                    <span>OR</span>
+                </div>
+
+                <!-- YouTube URL Section -->
+                <div class="youtube-section">
+                    <div class="youtube-section-header">
+                        <label for="youtubeUrlInput">Paste YouTube URL</label>
+                        <span class="limit-badge">YouTube videos: maximum 10 minutes</span>
+                    </div>
+
+                    <div class="youtube-input-group">
+                        <div class="input-icon-wrapper">
+                            <svg class="yt-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                            <input type="url" id="youtubeUrlInput" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+                        </div>
+                        <button class="primary-button" id="processYoutubeBtn" type="button">
+                            Process Video →
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         PROCESSING PIPELINE
+    ===================================================== -->
+    <section class="pipeline-section section">
+        <div class="section-label">
+            <span>02</span>
+            <span>PROCESSING PIPELINE</span>
+        </div>
+
+        <div class="pipeline-track">
+            <div class="pipeline-item" id="pipeStep1">
+                <span class="pipeline-number">01</span>
+                <span class="pipeline-icon">◌</span>
+                <strong>Audio</strong>
+                <small>Extraction</small>
+            </div>
+            <div class="pipeline-line"></div>
+
+            <div class="pipeline-item" id="pipeStep2">
+                <span class="pipeline-number">02</span>
+                <span class="pipeline-icon">◉</span>
+                <strong>Transcript</strong>
+                <small>Whisper</small>
+            </div>
+            <div class="pipeline-line"></div>
+
+            <div class="pipeline-item" id="pipeStep3">
+                <span class="pipeline-number">03</span>
+                <span class="pipeline-icon">◇</span>
+                <strong>Summary</strong>
+                <small>LLM</small>
+            </div>
+            <div class="pipeline-line"></div>
+
+            <div class="pipeline-item" id="pipeStep4">
+                <span class="pipeline-number">04</span>
+                <span class="pipeline-icon">◎</span>
+                <strong>Vector Store</strong>
+                <small>Chroma</small>
+            </div>
+            <div class="pipeline-line"></div>
+
+            <div class="pipeline-item" id="pipeStep5">
+                <span class="pipeline-number">05</span>
+                <span class="pipeline-icon">⌁</span>
+                <strong>RAG</strong>
+                <small>Retrieval</small>
+            </div>
+            <div class="pipeline-line"></div>
+
+            <div class="pipeline-item" id="pipeStep6">
+                <span class="pipeline-number">06</span>
+                <span class="pipeline-icon">↗</span>
+                <strong>Insights</strong>
+                <small>Ready</small>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         VIDEO ANALYSIS
+    ===================================================== -->
+    <section class="analysis section" id="analysis">
+        <div class="section-label">
+            <span>03</span>
+            <span>VIDEO ANALYSIS</span>
+        </div>
+
+        <div class="analysis-header">
+            <div>
+                <p class="status-badge" id="analysisStatus">
+                    ● READY FOR INPUT
+                </p>
+                <h2 id="analysisTitle">
+                    No Video Processed Yet
+                </h2>
+            </div>
+
+            <div class="analysis-meta">
+                <span id="metaDuration">00:00</span>
+                <span id="metaLanguage">ENGLISH</span>
+                <span id="metaWords">0 WORDS</span>
+            </div>
+        </div>
+
+        <!-- SUMMARY CARD -->
+        <article class="summary-card">
+            <div class="card-heading">
+                <span>EXECUTIVE SUMMARY</span>
+                <span>01</span>
+            </div>
+            <div class="markdown-body" id="summaryText">
+                <p class="placeholder-text">Process a video or YouTube link above to generate an executive meeting summary.</p>
+            </div>
+        </article>
+
+        <!-- ACTION ITEMS & DECISIONS GRID -->
+        <div class="analysis-grid">
+            <!-- ACTION ITEMS -->
+            <article class="info-card">
+                <div class="card-heading">
+                    <span>ACTION ITEMS</span>
+                    <span>02</span>
+                </div>
+                <div id="actionItemsContainer" class="markdown-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">—</div>
+                        <h3>No action items yet.</h3>
+                        <p>Action items extracted from the video will appear here.</p>
+                    </div>
+                </div>
+            </article>
+
+            <!-- KEY DECISIONS -->
+            <article class="info-card">
+                <div class="card-heading">
+                    <span>KEY DECISIONS</span>
+                    <span>03</span>
+                </div>
+                <div id="keyDecisionsContainer" class="markdown-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">—</div>
+                        <h3>No key decisions yet.</h3>
+                        <p>Key decisions made in the discussion will be listed here.</p>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <!-- OPEN QUESTIONS -->
+        <article class="questions-card">
+            <div class="card-heading">
+                <span>OPEN QUESTIONS</span>
+                <span>04</span>
+            </div>
+            <div id="openQuestionsContainer" class="markdown-body">
+                <div class="empty-state">
+                    <div class="empty-icon">—</div>
+                    <h3>No open questions yet.</h3>
+                    <p>Unresolved topics and follow-up questions will appear here.</p>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <!-- =====================================================
+         TRANSCRIPT
+    ===================================================== -->
+    <section class="transcript-section section" id="transcript">
+        <div class="section-label">
+            <span>04</span>
+            <span>TRANSCRIPT</span>
+        </div>
+
+        <div class="transcript-header">
+            <div>
+                <h2>Transcript</h2>
+                <p id="transcriptMetaSubtitle">
+                    Accurate speech-to-text with continuous timestamps
+                </p>
+            </div>
+
+            <div class="transcript-actions">
+                <button class="secondary-button small" id="copyTranscript" type="button">
+                    Copy
+                </button>
+
+                <div class="download-wrapper">
+                    <button class="primary-button small" id="downloadButton" type="button" aria-haspopup="true" aria-expanded="false">
+                        Download
+                        <span>⌄</span>
+                    </button>
+
+                    <div class="download-menu" id="downloadMenu" role="menu">
+                        <button data-download="txt" role="menuitem">
+                            <strong>TXT</strong>
+                            <small>Plain text format</small>
+                        </button>
+                        <button data-download="srt" role="menuitem">
+                            <strong>SRT</strong>
+                            <small>SubRip subtitles with timestamps</small>
+                        </button>
+                        <button data-download="vtt" role="menuitem">
+                            <strong>VTT</strong>
+                            <small>WebVTT captions format</small>
+                        </button>
+                        <button data-download="json" role="menuitem">
+                            <strong>JSON</strong>
+                            <small>Structured segment metadata</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="transcript-container" id="transcriptContainer">
+            <div class="transcript-empty-state">
+                <p>No transcript loaded. Process a video or YouTube link to view the synchronized transcript.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         ASK AI
+    ===================================================== -->
+    <section class="ask-section section" id="ask">
+        <div class="section-label">
+            <span>05</span>
+            <span>ASK THE VIDEO</span>
+        </div>
+
+        <div class="ask-layout">
+            <div class="ask-intro">
+                <p class="eyebrow">GROUNDED IN YOUR TRANSCRIPT</p>
+                <h2>
+                    Ask anything<br>about this <span class="hero-highlight">video.</span>
+                </h2>
+                <p>
+                    Query the entire discussion using retrieval-augmented generation. Answers are strictly grounded in the verified transcript context.
+                </p>
+            </div>
+
+            <div class="chat-box">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message assistant">
+                        <span class="chat-label">AI ASSISTANT</span>
+                        <div class="markdown-body">
+                            <p>Hello! Once you process a video or YouTube URL above, you can ask me any question about the meeting, topics discussed, or specific details.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-wrapper">
+                    <div class="chat-input">
+                        <textarea id="questionInput" rows="1" placeholder="Ask anything about this video... (Enter to send, Shift+Enter for newline)"></textarea>
+                        <button id="askButton" type="button" aria-label="Send message">
+                            ↗
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+<footer>
+    <div class="footer-top">
+        <div>
+            <div class="footer-brand">AI VIDEO</div>
+            <p>Turn video into searchable knowledge.</p>
+        </div>
+
+        <div class="footer-links">
+            <a href="#workspace">Workspace</a>
+            <a href="#analysis">Analysis</a>
+            <a href="#transcript">Transcript</a>
+            <a href="#ask">Ask AI</a>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
+        <span>© 2026 AI Video Assistant</span>
+        <span>TRANSCRIPTION · RAG · INTELLIGENCE</span>
+    </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

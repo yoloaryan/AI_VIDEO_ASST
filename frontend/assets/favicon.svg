@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#A1A1A1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Tile with subtle border -->
+  <rect x="1" y="1" width="30" height="30" rx="7.5" fill="#121212" stroke="#2E2E2E" stroke-width="1.5"/>
+  <!-- Minimal geometric AI Play mark -->
+  <path d="M12 9.5L22.5 16L12 22.5V9.5Z" fill="url(#glow)"/>
+  <!-- AI Spark node -->
+  <circle cx="21" cy="11" r="1.5" fill="#FFFFFF"/>
+</svg>

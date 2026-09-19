@@ -26,5 +26,9 @@ downloads/
 .idea/
 .DS_Store
 
+# Vector database
+vector_db/
+
 # Streamlit
 .streamlit/
+
