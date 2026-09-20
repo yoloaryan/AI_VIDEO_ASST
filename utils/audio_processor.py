@@ -1,11 +1,12 @@
 import os
 import re
+import base64
+import tempfile
 
 from typing import Optional
-from urllib.parse import (urlparse, parse_qs)
+from urllib.parse import urlparse, parse_qs
 
 import yt_dlp
-
 from pydub import AudioSegment
 
 # ============================================================
@@ -15,6 +16,8 @@ from pydub import AudioSegment
 DOWNLOAD_DIR = "downloads"
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+MAX_YOUTUBE_DURATION_SECONDS = 10 * 60
 
 # ============================================================
 # YOUTUBE VIDEO ID
@@ -28,25 +31,17 @@ def extract_youtube_video_id(url: str) -> str:
     try:
 
         parsed = urlparse(url)
-
         hostname = (parsed.hostname or "").lower()
 
-        # ----------------------------------------------------
         # youtu.be
-        # ----------------------------------------------------
-
         if hostname in ("youtu.be", "www.youtu.be"):
 
             return parsed.path.lstrip("/")[:11]
 
-        # ----------------------------------------------------
         # youtube.com
-        # ----------------------------------------------------
-
         if hostname in ("youtube.com", "www.youtube.com", "m.youtube.com"):
 
             # /watch?v=VIDEO_ID
-
             if parsed.path == "/watch":
 
                 return parse_qs(parsed.query).get("v", [""])[0][:11]
@@ -67,9 +62,7 @@ def extract_youtube_video_id(url: str) -> str:
 
         print(f"Video ID parsing error: {e}")
 
-    # --------------------------------------------------------
     # Regex fallback
-    # --------------------------------------------------------
 
     match = re.search(
         r"(?:v=|\/|embed\/|youtu\.be\/|\/v\/|\/shorts\/)"
@@ -83,17 +76,11 @@ def extract_youtube_video_id(url: str) -> str:
 
 
 # ============================================================
-# PROXY
+# YOUTUBE PROXY
 # ============================================================
 
 
 def get_youtube_proxy() -> Optional[str]:
-    """
-    Only use an explicitly configured YOUTUBE_PROXY.
-
-    We intentionally do NOT automatically use generic
-    HTTP_PROXY / HTTPS_PROXY environment variables.
-    """
 
     proxy = os.getenv("YOUTUBE_PROXY", "").strip()
 
@@ -105,10 +92,56 @@ def get_youtube_proxy() -> Optional[str]:
         return proxy
 
     print("[YouTube Config] "
-          "No YOUTUBE_PROXY configured. "
-          "Using direct connection.")
+          "No YOUTUBE_PROXY configured.")
 
     return None
+
+
+# ============================================================
+# YOUTUBE COOKIES
+# ============================================================
+
+
+def get_youtube_cookie_file() -> Optional[str]:
+    """
+    Creates a temporary Netscape-format cookies file from
+    YOUTUBE_COOKIES_BASE64.
+
+    This allows Railway to use an exported YouTube cookies
+    file without committing the cookies to GitHub.
+    """
+
+    cookies_b64 = os.getenv("YOUTUBE_COOKIES_BASE64", "").strip()
+
+    if not cookies_b64:
+
+        print("[YouTube Config] "
+              "No YOUTUBE_COOKIES_BASE64 configured.")
+
+        return None
+
+    try:
+
+        decoded = base64.b64decode(cookies_b64)
+
+        cookie_path = os.path.join(tempfile.gettempdir(),
+                                   "youtube_cookies.txt")
+
+        with open(cookie_path, "wb") as f:
+
+            f.write(decoded)
+
+        print("[YouTube Config] "
+              "YouTube cookies loaded.")
+
+        return cookie_path
+
+    except Exception as e:
+
+        print("[YouTube Config] "
+              f"Failed to decode YouTube cookies: {e}")
+
+        return None
 
 
 # ============================================================
@@ -118,12 +151,6 @@ def get_youtube_proxy() -> Optional[str]:
 
 def fetch_youtube_transcript(url: str,
                              language: str = "english") -> Optional[dict]:
-    """
-    Try to retrieve an existing YouTube transcript.
-
-    If transcript extraction fails, return None so the
-    pipeline can fall back to yt-dlp.
-    """
 
     video_id = extract_youtube_video_id(url)
 
@@ -133,7 +160,8 @@ def fetch_youtube_transcript(url: str,
 
         return None
 
-    print(f"Attempting transcript for video: {video_id}")
+    print(f"Attempting transcript for video: "
+          f"{video_id}")
 
     try:
 
@@ -162,7 +190,7 @@ def fetch_youtube_transcript(url: str,
             languages = ["en", "en-US", "en-GB", "hi"]
 
         # ====================================================
-        # METHOD 1 — NEW API
+        # NEW API
         # ====================================================
 
         try:
@@ -196,11 +224,11 @@ def fetch_youtube_transcript(url: str,
 
         except Exception as e:
 
-            print("Transcript API method 1 "
-                  f"failed: {e}")
+            print("Transcript API method failed: "
+                  f"{e}")
 
         # ====================================================
-        # METHOD 2 — LEGACY API
+        # LEGACY API
         # ====================================================
 
         if not transcript_snippets:
@@ -224,8 +252,8 @@ def fetch_youtube_transcript(url: str,
 
             except Exception as e:
 
-                print("Transcript API method 2 "
-                      f"failed: {e}")
+                print("Legacy transcript API failed: "
+                      f"{e}")
 
         # ====================================================
         # NO TRANSCRIPT
@@ -242,14 +270,9 @@ def fetch_youtube_transcript(url: str,
         # ====================================================
 
         full_text = []
-
         segments = []
 
         for snippet in transcript_snippets:
-
-            # ------------------------------------------------
-            # Dictionary format
-            # ------------------------------------------------
 
             if isinstance(snippet, dict):
 
@@ -258,10 +281,6 @@ def fetch_youtube_transcript(url: str,
                 start = round(float(snippet.get("start", 0.0)), 2)
 
                 duration = round(float(snippet.get("duration", 0.0)), 2)
-
-            # ------------------------------------------------
-            # Object format
-            # ------------------------------------------------
 
             else:
 
@@ -310,13 +329,35 @@ def get_ytdlp_options(download: bool = False) -> dict:
 
     proxy = get_youtube_proxy()
 
+    cookie_file = get_youtube_cookie_file()
+
     options = {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "socket_timeout": 30,
-        "retries": 2,
-        "fragment_retries": 2,
+        "retries": 3,
+        "fragment_retries": 3,
+        "extractor_retries": 3,
+        "concurrent_fragment_downloads": 1,
+        "nocheckcertificate": True,
+        "geo_bypass": True,
+        "geo_bypass_country": "IN",
+    }
+
+    # --------------------------------------------------------
+    # User agent
+    # --------------------------------------------------------
+
+    options["http_headers"] = {
+        "User-Agent": ("Mozilla/5.0 "
+                       "(X11; Linux x86_64) "
+                       "AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) "
+                       "Chrome/131.0.0.0 "
+                       "Safari/537.36"),
+        "Accept-Language":
+        "en-US,en;q=0.9",
     }
 
     # --------------------------------------------------------
@@ -345,6 +386,14 @@ def get_ytdlp_options(download: bool = False) -> dict:
 
         options["proxy"] = proxy
 
+    # --------------------------------------------------------
+    # YouTube cookies
+    # --------------------------------------------------------
+
+    if cookie_file:
+
+        options["cookiefile"] = cookie_file
+
     return options
 
 
@@ -354,12 +403,6 @@ def get_ytdlp_options(download: bool = False) -> dict:
 
 
 def download_youtube_audio(url: str) -> str:
-    """
-    Download YouTube audio and convert it to WAV.
-
-    Maximum supported YouTube duration:
-    10 minutes.
-    """
 
     print("Starting YouTube audio extraction...")
 
@@ -370,7 +413,7 @@ def download_youtube_audio(url: str) -> str:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
             # ------------------------------------------------
-            # Get metadata first
+            # Metadata
             # ------------------------------------------------
 
             print("Getting YouTube video information...")
@@ -379,10 +422,11 @@ def download_youtube_audio(url: str) -> str:
 
             if not info:
 
-                raise RuntimeError("YouTube did not return video information.")
+                raise RuntimeError("YouTube did not return "
+                                   "video information.")
 
             # ------------------------------------------------
-            # Duration check
+            # Duration
             # ------------------------------------------------
 
             duration = (info.get("duration") or 0)
@@ -390,10 +434,10 @@ def download_youtube_audio(url: str) -> str:
             print(f"YouTube duration: "
                   f"{duration:.0f} seconds")
 
-            if duration > (10 * 60):
+            if duration > MAX_YOUTUBE_DURATION_SECONDS:
 
-                raise ValueError("This video is longer than "
-                                 "10 minutes. Please choose "
+                raise ValueError("This YouTube video is longer "
+                                 "than 10 minutes. Please choose "
                                  "a video within the 10-minute limit.")
 
             # ------------------------------------------------
@@ -416,7 +460,7 @@ def download_youtube_audio(url: str) -> str:
             ydl.download([url])
 
             # ------------------------------------------------
-            # Expected WAV path
+            # Expected WAV
             # ------------------------------------------------
 
             expected_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.wav")
@@ -459,16 +503,27 @@ def download_youtube_audio(url: str) -> str:
 
         print(error_text)
 
+        error_lower = error_text.lower()
+
         # ====================================================
         # BOT DETECTION
         # ====================================================
 
-        if ("Sign in to confirm you're not a bot" in error_text):
+        if ("sign in to confirm you're not a bot" in error_text
+                or "sign in to confirm you're not a bot" in error_lower):
 
-            raise RuntimeError("YouTube is currently blocking "
-                               "automated access from the server. "
-                               "Please upload the video or audio "
-                               "file directly instead.")
+            if not os.getenv("YOUTUBE_COOKIES_BASE64", "").strip():
+
+                raise RuntimeError("YouTube is blocking automated "
+                                   "access from the Railway server. "
+                                   "Configure YOUTUBE_COOKIES_BASE64 "
+                                   "in Railway Variables or upload "
+                                   "the video/audio file directly.")
+
+            raise RuntimeError("YouTube still requires authentication "
+                               "even with the configured cookies. "
+                               "Please refresh the YouTube cookies or "
+                               "upload the video/audio file directly.")
 
         # ====================================================
         # HTTP 403
@@ -477,26 +532,28 @@ def download_youtube_audio(url: str) -> str:
         if ("HTTP Error 403" in error_text or "403 Forbidden" in error_text):
 
             raise RuntimeError("YouTube denied access to this video "
-                               "from the server. Please upload the "
-                               "video or audio file directly instead.")
+                               "from the server. Configure a valid "
+                               "YouTube cookie file or upload the "
+                               "video/audio file directly.")
 
         # ====================================================
         # SIGN-IN REQUIRED
         # ====================================================
 
-        if ("Sign in" in error_text and "youtube" in error_text.lower()):
+        if ("sign in" in error_lower and "youtube" in error_lower):
 
             raise RuntimeError("YouTube requires authentication for "
-                               "this request. Please upload the "
-                               "video or audio file directly instead.")
+                               "this request. Configure "
+                               "YOUTUBE_COOKIES_BASE64 in Railway "
+                               "or upload the video/audio file directly.")
 
         # ====================================================
-        # GENERIC ERROR
+        # GENERIC
         # ====================================================
 
-        raise RuntimeError("Unable to download the YouTube video. "
-                           "Please try another video or upload "
-                           "the video/audio file directly.")
+        raise RuntimeError("Unable to download this YouTube video. "
+                           "Please try another video or upload the "
+                           "video/audio file directly.")
 
 
 # ============================================================
@@ -514,10 +571,6 @@ def convert_to_wav(input_path: str) -> str:
 
         audio = AudioSegment.from_file(input_path)
 
-        # ----------------------------------------------------
-        # Whisper-friendly audio
-        # ----------------------------------------------------
-
         audio = (audio.set_channels(1).set_frame_rate(16000))
 
         audio.export(output_path, format="wav")
@@ -529,7 +582,7 @@ def convert_to_wav(input_path: str) -> str:
 
     except Exception as e:
 
-        raise RuntimeError(f"Failed to convert the uploaded "
+        raise RuntimeError("Failed to convert the uploaded "
                            f"file to WAV: {e}")
 
 

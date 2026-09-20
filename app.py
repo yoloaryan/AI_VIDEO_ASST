@@ -2,16 +2,25 @@ import os
 import shutil
 import uuid
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import (FastAPI, UploadFile, File, Form, HTTPException)
+
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+
+from fastapi.middleware.cors import (CORSMiddleware)
+
 from pydantic import BaseModel
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
 from main import run_pipeline
-from core.rag_engine import ask_question, load_rag_chain
+
+from core.rag_engine import (ask_question, load_rag_chain)
+
+# ============================================================
+# APP
+# ============================================================
 
 app = FastAPI(title="AI Video Assistant")
 
@@ -31,8 +40,7 @@ app.add_middleware(
 # CONFIGURATION
 # ============================================================
 
-# Maximum uploaded file size = 200 MB
-MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024
+MAX_FILE_SIZE_BYTES = (200 * 1024 * 1024)
 
 ALLOWED_EXTENSIONS = {
     ".mp4",
@@ -55,7 +63,7 @@ current_state = {
     "open_questions": "",
     "transcript": "",
     "segments": [],
-    "rag_chain": None,
+    "rag_chain": None
 }
 
 # ============================================================
@@ -64,11 +72,14 @@ current_state = {
 
 
 class ProcessURLRequest(BaseModel):
+
     url: str
+
     language: str = "english"
 
 
 class AskRequest(BaseModel):
+
     question: str
 
 
@@ -79,6 +90,7 @@ class AskRequest(BaseModel):
 
 @app.get("/api/health")
 def health_check():
+
     return {"status": "ok", "service": "AI Video Assistant"}
 
 
@@ -95,19 +107,23 @@ def process_url_endpoint(req: ProcessURLRequest):
     url = req.url.strip()
 
     if not url:
+
         raise HTTPException(status_code=400, detail="YouTube URL is required.")
 
     if not (url.startswith("http://") or url.startswith("https://")):
-        raise HTTPException(
-            status_code=400,
-            detail="Please enter a valid URL starting with http:// or https://"
-        )
+
+        raise HTTPException(status_code=400,
+                            detail=("Please enter a valid URL "
+                                    "starting with http:// or https://"))
 
     try:
 
         print("=" * 60)
+
         print("Processing YouTube URL")
+
         print(url)
+
         print("=" * 60)
 
         result = run_pipeline(url, req.language)
@@ -124,27 +140,27 @@ def process_url_endpoint(req: ProcessURLRequest):
             "segments": result.get("segments", [])
         }
 
-    except ValueError as ve:
+    except ValueError as e:
 
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=400, detail=str(e))
 
-    except RuntimeError as re:
+    except RuntimeError as e:
 
-        print(f"YouTube processing error: {re}")
+        print(f"YouTube processing error: {e}")
 
-        raise HTTPException(status_code=400, detail=str(re))
+        raise HTTPException(status_code=400, detail=str(e))
 
-    except Exception as e:
+    except Exception:
 
         import traceback
 
         traceback.print_exc()
 
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Failed to process the YouTube video. "
-                "Please try another video or upload the video file directly."))
+        raise HTTPException(status_code=500,
+                            detail=("Failed to process the YouTube video. "
+                                    "Please try another video, configure "
+                                    "YouTube cookies, or upload the video "
+                                    "file directly."))
 
 
 # ============================================================
@@ -161,10 +177,11 @@ async def process_file_endpoint(file: UploadFile = File(...),
     filename = file.filename or ""
 
     if not filename:
+
         raise HTTPException(status_code=400, detail="No file was selected.")
 
     # --------------------------------------------------------
-    # Check extension
+    # EXTENSION
     # --------------------------------------------------------
 
     _, ext = os.path.splitext(filename)
@@ -173,13 +190,13 @@ async def process_file_endpoint(file: UploadFile = File(...),
 
     if ext not in ALLOWED_EXTENSIONS:
 
-        raise HTTPException(
-            status_code=400,
-            detail=(f"Unsupported file format '{ext}'. "
-                    "Allowed formats: MP4, MOV, MP3, WAV, M4A, WEBM."))
+        raise HTTPException(status_code=400,
+                            detail=(f"Unsupported file format '{ext}'. "
+                                    "Allowed formats: MP4, MOV, MP3, WAV, "
+                                    "M4A, WEBM."))
 
     # --------------------------------------------------------
-    # Check file size
+    # FILE SIZE
     # --------------------------------------------------------
 
     file.file.seek(0, 2)
@@ -190,19 +207,19 @@ async def process_file_endpoint(file: UploadFile = File(...),
 
     if file_size > MAX_FILE_SIZE_BYTES:
 
-        raise HTTPException(
-            status_code=400,
-            detail=("File too large. "
-                    "Please upload a video or audio file under 200 MB."))
+        raise HTTPException(status_code=400,
+                            detail=("File too large. "
+                                    "Please upload a video or audio "
+                                    "file under 200 MB."))
 
     # --------------------------------------------------------
-    # Create downloads directory
+    # DIRECTORY
     # --------------------------------------------------------
 
     os.makedirs("downloads", exist_ok=True)
 
     # --------------------------------------------------------
-    # Generate safe filename
+    # SAFE FILENAME
     # --------------------------------------------------------
 
     safe_filename = (f"{uuid.uuid4().hex}{ext}")
@@ -210,7 +227,7 @@ async def process_file_endpoint(file: UploadFile = File(...),
     file_path = os.path.join("downloads", safe_filename)
 
     # --------------------------------------------------------
-    # Save uploaded file
+    # SAVE FILE
     # --------------------------------------------------------
 
     try:
@@ -219,23 +236,28 @@ async def process_file_endpoint(file: UploadFile = File(...),
 
             shutil.copyfileobj(file.file, buffer)
 
-    except Exception as e:
+    except Exception:
 
         raise HTTPException(status_code=500,
                             detail="Failed to save the uploaded file.")
 
     # --------------------------------------------------------
-    # Process file
+    # PROCESS
     # --------------------------------------------------------
 
     try:
 
         print("=" * 60)
+
         print("Processing uploaded file")
+
         print(f"Original filename: {filename}")
+
         print(f"Saved filename: {safe_filename}")
+
         print(f"Size: "
               f"{file_size / (1024 * 1024):.2f} MB")
+
         print("=" * 60)
 
         result = run_pipeline(file_path, language)
@@ -252,15 +274,13 @@ async def process_file_endpoint(file: UploadFile = File(...),
             "segments": result.get("segments", [])
         }
 
-    except ValueError as ve:
+    except ValueError as e:
 
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=400, detail=str(e))
 
-    except RuntimeError as re:
+    except RuntimeError as e:
 
-        print(f"File processing error: {re}")
-
-        raise HTTPException(status_code=400, detail=str(re))
+        raise HTTPException(status_code=400, detail=str(e))
 
     except Exception:
 
@@ -274,16 +294,14 @@ async def process_file_endpoint(file: UploadFile = File(...),
 
     finally:
 
-        # ----------------------------------------------------
-        # Remove uploaded temporary file
-        # ----------------------------------------------------
-
         try:
 
             if os.path.exists(file_path):
+
                 os.remove(file_path)
 
         except Exception:
+
             pass
 
 
@@ -306,10 +324,6 @@ def ask_endpoint(req: AskRequest):
 
     rag_chain = current_state.get("rag_chain")
 
-    # --------------------------------------------------------
-    # Load RAG chain if needed
-    # --------------------------------------------------------
-
     if not rag_chain:
 
         try:
@@ -321,12 +335,9 @@ def ask_endpoint(req: AskRequest):
         except Exception:
 
             raise HTTPException(status_code=400,
-                                detail=("Please process a video or YouTube "
-                                        "link first before asking questions."))
-
-    # --------------------------------------------------------
-    # Ask question
-    # --------------------------------------------------------
+                                detail=("Please process a video or "
+                                        "YouTube link first before "
+                                        "asking questions."))
 
     try:
 

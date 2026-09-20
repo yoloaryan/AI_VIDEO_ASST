@@ -1,27 +1,60 @@
 FROM python:3.11-slim
 
-# Install system packages (ffmpeg is essential for audio processing)
+# ============================================================
+# SYSTEM DEPENDENCIES
+# ============================================================
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     build-essential \
     curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+
+# ============================================================
+# APPLICATION
+# ============================================================
 
 WORKDIR /app
 
-# Upgrade pip
+
+# ============================================================
+# PYTHON
+# ============================================================
+
 RUN pip install --no-cache-dir --upgrade pip
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code
+# ============================================================
+# DEPENDENCIES
+# ============================================================
+
+COPY requirements.txt .
+
+RUN pip install \
+    --no-cache-dir \
+    -r requirements.txt
+
+
+# ============================================================
+# SOURCE
+# ============================================================
+
 COPY . .
 
-# Railway provides $PORT at runtime
-ENV PORT=8080
-EXPOSE $PORT
 
-# Start application
+# ============================================================
+# RAILWAY
+# ============================================================
+
+ENV PORT=8080
+
+EXPOSE 8080
+
+
+# ============================================================
+# START
+# ============================================================
+
 CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}"]

@@ -12,8 +12,8 @@ let transcriptData = {
 
 let isProcessing = false;
 let selectedFile = null;
-
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
+// const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 /* =====================================================
    THEME MANAGER (DARK / LIGHT WITH PERSISTENCE)
@@ -328,19 +328,18 @@ function initUploadHandlers() {
     function handleFile(file) {
         if (!file) return;
 
-        // Strict 5 MB Validation
+        // Strict 200 MB Validation
         if (file.size > MAX_FILE_SIZE_BYTES) {
-            showToast("File too large. Please upload a video under 5 MB.", "error", 5000);
-            if (videoInput) videoInput.value = "";
-            if (fileSelectedCard) fileSelectedCard.style.display = "none";
-            selectedFile = null;
-            return;
-        }
+            showToast(
+                "File too large. Please upload a video under 200 MB.",
+                "error",
+                5000
+            );
 
-        selectedFile = file;
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-        
-        if (selectedFileName) selectedFileName.textContent = file.name;
+            selectedFile = file;
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+
+            if (selectedFileName) selectedFileName.textContent = file.name;
         if (selectedFileSize) selectedFileSize.textContent = `${sizeMb} MB`;
         if (fileSelectedCard) fileSelectedCard.style.display = "flex";
 

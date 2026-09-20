@@ -39,14 +39,14 @@ def run_pipeline(source: str, language: str = "english") -> dict:
 
         # ----------------------------------------------------
         # First attempt:
-        # Direct YouTube transcript
+        # Existing YouTube transcript
         # ----------------------------------------------------
 
         print("Attempting direct YouTube transcript...")
 
         try:
 
-            direct_result = fetch_youtube_transcript(source, language)
+            direct_result = (fetch_youtube_transcript(source, language))
 
         except Exception as e:
 
@@ -55,29 +55,28 @@ def run_pipeline(source: str, language: str = "english") -> dict:
             direct_result = None
 
         # ----------------------------------------------------
-        # Transcript successfully obtained
+        # Transcript obtained
         # ----------------------------------------------------
 
         if (direct_result and direct_result.get("text")):
 
-            print("YouTube transcript extracted successfully.")
+            print("YouTube transcript extracted "
+                  "successfully.")
 
-            transcript = direct_result.get("text", "")
+            transcript = (direct_result.get("text", ""))
 
-            segments = direct_result.get("segments", [])
-
-        # ----------------------------------------------------
-        # Transcript unavailable
-        # ----------------------------------------------------
+            segments = (direct_result.get("segments", []))
 
         else:
 
-            print("Direct transcript unavailable.")
+            print("Direct YouTube transcript "
+                  "unavailable.")
 
-            print("Falling back to YouTube audio extraction...")
+            print("Falling back to YouTube "
+                  "audio extraction...")
 
     # ========================================================
-    # LOCAL FILE OR YOUTUBE FALLBACK
+    # LOCAL FILE OR YOUTUBE AUDIO FALLBACK
     # ========================================================
 
     if not transcript:
@@ -86,20 +85,16 @@ def run_pipeline(source: str, language: str = "english") -> dict:
 
             chunks = process_input(source)
 
-            print(f"Audio processing complete. "
+            print("Audio processing complete. "
                   f"{len(chunks)} chunk(s) created.")
 
-            # ------------------------------------------------
-            # Whisper / speech-to-text
-            # ------------------------------------------------
-
-            transcription_result = transcribe_all(chunks, language)
+            transcription_result = (transcribe_all(chunks, language))
 
             if isinstance(transcription_result, dict):
 
-                transcript = transcription_result.get("text", "")
+                transcript = (transcription_result.get("text", ""))
 
-                segments = transcription_result.get("segments", [])
+                segments = (transcription_result.get("segments", []))
 
             else:
 
@@ -123,14 +118,19 @@ def run_pipeline(source: str, language: str = "english") -> dict:
 
         except Exception as e:
 
-            print(f"Unexpected audio processing error: {e}")
+            print("Unexpected audio processing "
+                  f"error: {e}")
 
             if is_url:
 
-                raise RuntimeError(
-                    "Unable to process this YouTube video. "
-                    "YouTube may be blocking automated access. "
-                    "Please upload the video/audio file directly.")
+                raise RuntimeError("Unable to process this "
+                                   "YouTube video. "
+                                   "YouTube may be blocking "
+                                   "automated access from the "
+                                   "Railway server. "
+                                   "Configure YouTube cookies "
+                                   "or upload the video/audio "
+                                   "file directly.")
 
             raise
 
@@ -138,9 +138,10 @@ def run_pipeline(source: str, language: str = "english") -> dict:
     # CHECK TRANSCRIPT
     # ========================================================
 
-    if not transcript or not transcript.strip():
+    if (not transcript or not transcript.strip()):
 
-        raise ValueError("No transcript could be generated from this video.")
+        raise ValueError("No transcript could be generated "
+                         "from this video.")
 
     print("=" * 60)
     print("TRANSCRIPTION COMPLETE")
@@ -172,7 +173,7 @@ def run_pipeline(source: str, language: str = "english") -> dict:
 
     print("Extracting action items...")
 
-    action_items = extract_action_items(transcript)
+    action_items = (extract_action_items(transcript))
 
     # ========================================================
     # KEY DECISIONS
@@ -180,7 +181,7 @@ def run_pipeline(source: str, language: str = "english") -> dict:
 
     print("Extracting key decisions...")
 
-    key_decisions = extract_key_decisions(transcript)
+    key_decisions = (extract_key_decisions(transcript))
 
     # ========================================================
     # OPEN QUESTIONS
@@ -188,7 +189,7 @@ def run_pipeline(source: str, language: str = "english") -> dict:
 
     print("Extracting open questions...")
 
-    open_questions = extract_questions(transcript)
+    open_questions = (extract_questions(transcript))
 
     # ========================================================
     # RAG
@@ -199,7 +200,7 @@ def run_pipeline(source: str, language: str = "english") -> dict:
     rag_chain = build_rag_chain(transcript)
 
     # ========================================================
-    # FINAL RESULT
+    # RESULT
     # ========================================================
 
     result = {
@@ -228,28 +229,29 @@ if __name__ == "__main__":
 
     source = input("Enter YouTube URL or local file path: ").strip()
 
-    language = input("Language (english/hinglish): ").strip() or "english"
+    language = (input("Language (english/hinglish): ").strip() or "english")
 
     result = run_pipeline(source, language)
 
     print("\n")
     print("=" * 60)
 
-    print(f"📌 Title:\n{result['title']}")
+    print(f"📌 Title:\n"
+          f"{result['title']}")
 
-    print(f"\n📋 Summary:\n{result['summary']}")
+    print(f"\n📋 Summary:\n"
+          f"{result['summary']}")
 
-    print(f"\n✅ Action Items:\n{result['action_items']}")
+    print(f"\n✅ Action Items:\n"
+          f"{result['action_items']}")
 
-    print(f"\n🔑 Key Decisions:\n{result['key_decisions']}")
+    print(f"\n🔑 Key Decisions:\n"
+          f"{result['key_decisions']}")
 
-    print(f"\n❓ Open Questions:\n{result['open_questions']}")
+    print(f"\n❓ Open Questions:\n"
+          f"{result['open_questions']}")
 
     print("=" * 60)
-
-    # ========================================================
-    # RAG CHAT
-    # ========================================================
 
     print("\n💬 Chat with your video")
 
@@ -268,8 +270,10 @@ if __name__ == "__main__":
             break
 
         if not question:
+
             continue
 
         answer = ask_question(rag_chain, question)
 
-        print(f"\n🤖 Assistant: {answer}\n")
+        print(f"\n🤖 Assistant: "
+              f"{answer}\n")
