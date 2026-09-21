@@ -6,7 +6,7 @@ python-multipart>=0.0.9
 # Audio / Video Processing
 uvicorn
 fastapi
-yt-dlp>=2026.08.19
+yt-dlp[default]>=2026.08.19
 youtube-transcript-api>=1.2.4
 pydub>=0.25.1
 ffmpeg-python>=0.2.0

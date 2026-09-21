@@ -378,7 +378,6 @@ def fetch_youtube_transcript(url: str,
 def get_ytdlp_options(download: bool = False) -> dict:
 
     proxy = get_youtube_proxy()
-
     cookie_file = get_youtube_cookie_file()
 
     options = {
@@ -389,6 +388,10 @@ def get_ytdlp_options(download: bool = False) -> dict:
         "quiet": False,
         "no_warnings": False,
         "noplaylist": True,
+
+        # ----------------------------------------------------
+        # Network / Retry
+        # ----------------------------------------------------
         "socket_timeout": 45,
         "retries": 5,
         "fragment_retries": 5,
@@ -396,14 +399,21 @@ def get_ytdlp_options(download: bool = False) -> dict:
         "concurrent_fragment_downloads": 1,
 
         # ----------------------------------------------------
-        # Network
+        # Network / Geo
         # ----------------------------------------------------
         "nocheckcertificate": True,
         "geo_bypass": True,
         "geo_bypass_country": "IN",
 
         # ----------------------------------------------------
-        # Headers
+        # YouTube JavaScript Challenge Solver
+        # ----------------------------------------------------
+        # Required for modern YouTube bot/challenge checks.
+        # Deno is already installed in your Dockerfile.
+        "remote_components": ["ejs:github"],
+
+        # ----------------------------------------------------
+        # Browser-like Headers
         # ----------------------------------------------------
         "http_headers": {
             "User-Agent": ("Mozilla/5.0 "
@@ -447,6 +457,9 @@ def get_ytdlp_options(download: bool = False) -> dict:
 
         options["proxy"] = proxy
 
+        print("[YouTube Config] "
+              "yt-dlp will use the configured proxy.")
+
     # ========================================================
     # COOKIES
     # ========================================================
@@ -462,6 +475,13 @@ def get_ytdlp_options(download: bool = False) -> dict:
 
         print("[YouTube Config] "
               "yt-dlp will run without cookies.")
+
+    # ========================================================
+    # FINAL CONFIG LOG
+    # ========================================================
+
+    print("[YouTube Config] "
+          "EJS remote components enabled: ejs:github")
 
     return options
 
